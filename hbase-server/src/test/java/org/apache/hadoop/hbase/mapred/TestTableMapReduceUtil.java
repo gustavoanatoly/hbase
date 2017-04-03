@@ -34,6 +34,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.mapreduce.WALInputFormat;
 import org.apache.hadoop.hbase.testclassification.LargeTests;
 import org.apache.hadoop.hbase.testclassification.MapReduceTests;
 import org.apache.hadoop.hbase.client.Put;
@@ -41,12 +43,8 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.hadoop.mapred.JobClient;
-import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapred.MapReduceBase;
-import org.apache.hadoop.mapred.OutputCollector;
-import org.apache.hadoop.mapred.Reporter;
-import org.apache.hadoop.mapred.RunningJob;
+import org.apache.hadoop.mapred.*;
+import org.apache.hadoop.mapreduce.Job;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
@@ -163,6 +161,16 @@ public class TestTableMapReduceUtil {
     TableMapReduceUtil.setNumMapTasks(TABLE_NAME, jobConf);
     TableMapReduceUtil.limitNumMapTasks(TABLE_NAME, jobConf);
     assertEquals(1, jobConf.getNumMapTasks());
+  }
+
+  @Test
+  public void testInitTableMapperJob() throws IOException {
+    JobConf job = new JobConf(new Configuration());
+    TableMapReduceUtil.initTableMapJob(
+    "Table", new Scan(), ClassificatorMapper.class, ImmutableBytesWritable.class, Put.class,
+     job, false, false, InputFormat.class);
+
+    assertEquals(InputFormat.class, job.getInputFormat());
   }
 
   @Test

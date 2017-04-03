@@ -28,6 +28,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
+import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.mapreduce.*;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.mapred.FileInputFormat;
 import org.apache.hadoop.mapred.JobConf;
@@ -47,6 +49,16 @@ public class TableInputFormat extends TableInputFormatBase implements
    * space delimited list of columns
    */
   public static final String COLUMN_LIST = "hbase.mapred.tablecolumns";
+  /**
+   * Job parameter that specifies the input table.
+   * */
+  public static final String INPUT_TABLE =
+      org.apache.hadoop.hbase.mapreduce.TableInputFormat.INPUT_TABLE;
+  /** Base-64 encoded scanner. All other SCAN_ confs are ignored if this is specified.
+   * See {@link org.apache.hadoop.hbase.mapreduce.TableMapReduceUtil#convertScanToString(Scan)} for more details.
+   */
+  public static final String SCAN =
+      org.apache.hadoop.hbase.mapreduce.TableInputFormat.SCAN;
 
   public void configure(JobConf job) {
     try {

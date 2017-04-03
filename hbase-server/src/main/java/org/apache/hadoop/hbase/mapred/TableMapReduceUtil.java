@@ -18,6 +18,7 @@
  */
 package org.apache.hadoop.hbase.mapred;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.MetaTableAccessor;
@@ -29,17 +30,15 @@ import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
+import org.apache.hadoop.hbase.mapreduce.KeyValueSerialization;
 import org.apache.hadoop.hbase.mapreduce.MutationSerialization;
+import org.apache.hadoop.hbase.mapreduce.PutCombiner;
 import org.apache.hadoop.hbase.mapreduce.ResultSerialization;
 import org.apache.hadoop.hbase.security.User;
 import org.apache.hadoop.hbase.security.UserProvider;
 import org.apache.hadoop.hbase.security.token.TokenUtil;
-import org.apache.hadoop.mapred.FileInputFormat;
-import org.apache.hadoop.mapred.InputFormat;
-import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapred.OutputFormat;
-import org.apache.hadoop.mapred.TextInputFormat;
-import org.apache.hadoop.mapred.TextOutputFormat;
+import org.apache.hadoop.mapred.*;
+import org.apache.hadoop.mapreduce.Job;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -120,6 +119,30 @@ public class TableMapReduceUtil {
       // just spit out the stack trace?  really?
       ioe.printStackTrace();
     }
+  }
+  // TODO: Test some null parameters.
+  public static void initTableMapJob(
+    String table, Scan scan, Class<? extends TableMap> mapper, Class<?> outPutKeyClass,
+    Class<?> outPutValueClass, JobConf jobConf, boolean addDependencyJars, boolean initCredentials,
+    Class<? extends InputFormat> inputFormat) throws IOException {
+    Job job = Job.getInstance(jobConf);
+    jobConf.setInputFormat(inputFormat);
+    if (outPutKeyClass != null) job.setOutputKeyClass(outPutKeyClass);
+    if (outPutValueClass != null) job.setOutputValueClass(outPutValueClass);
+    if (mapper != null) jobConf.setMapperClass(mapper);
+    if (Put.class.equals(outPutValueClass)) {
+      job.setCombinerClass(PutCombiner.class);
+    }
+    Configuration config = job.getConfiguration();
+    HBaseConfiguration.merge(config, HBaseConfiguration.create(config));
+    config.set(TableInputFormat.INPUT_TABLE, table);
+    config.set(TableInputFormat.SCAN,
+        org.apache.hadoop.hbase.mapreduce.TableMapReduceUtil.convertScanToString(scan));
+    config.setStrings("io.serializations", config.get("io.serializations"),
+        MutationSerialization.class.getName(), ResultSerialization.class.getName(),
+        KeyValueSerialization.class.getName());
+    if (addDependencyJars) addDependencyJars(job);
+    if (initCredentials) initCredentials(job);
   }
 
   /**
@@ -282,6 +305,11 @@ public class TableMapReduceUtil {
     }
   }
 
+  public static void initCredentials(Job job) throws IOException {
+    JobConf jobConf = new JobConf(job.getConfiguration());
+    initCredentials(jobConf);
+  }
+
   /**
    * Ensures that the given number of reduce tasks for the given job
    * configuration does not exceed the number of regions for the given table.
@@ -374,5 +402,10 @@ public class TableMapReduceUtil {
       job.getClass("mapred.input.format.class", TextInputFormat.class, InputFormat.class),
       job.getClass("mapred.output.format.class", TextOutputFormat.class, OutputFormat.class),
       job.getCombinerClass());
+  }
+
+  public static void addDependencyJars(Job job) throws IOException {
+    JobConf jobConf = new JobConf(job.getConfiguration());
+    addDependencyJars(jobConf);
   }
 }
